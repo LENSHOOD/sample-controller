@@ -236,7 +236,7 @@ k8s.io/api/scheduling/v1beta1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apimachinery v0.0.0-20220922184044-826a74e82875 => k8s.io/apimachinery v0.0.0-20220922184044-826a74e82875
+# k8s.io/apimachinery v0.0.0-20220922184044-826a74e82875 => k8s.io/apimachinery v0.0.0-20220922184044-7fb78ee96289
 ## explicit; go 1.19
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
@@ -280,7 +280,7 @@ k8s.io/apimachinery/pkg/version
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/client-go v0.0.0-20220922185149-be20b2bd91d8 => k8s.io/client-go v0.0.0-20220922185149-be20b2bd91d8
+# k8s.io/client-go v0.0.0-20220926163418-2f43d370b32c => k8s.io/client-go v0.0.0-20220926163418-2f43d370b32c
 ## explicit; go 1.19
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1beta1
@@ -558,7 +558,7 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/workqueue
-# k8s.io/code-generator v0.0.0-20220922164127-998e449a1f89 => k8s.io/code-generator v0.0.0-20220922164127-998e449a1f89
+# k8s.io/code-generator v0.0.0-20220926162019-1d82d12fa310 => k8s.io/code-generator v0.0.0-20220926162019-1d82d12fa310
 ## explicit; go 1.19
 k8s.io/code-generator
 k8s.io/code-generator/cmd/client-gen
@@ -653,6 +653,6 @@ sigs.k8s.io/structured-merge-diff/v4/value
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 # k8s.io/api => k8s.io/api v0.0.0-20220922184533-be233f856791
-# k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20220922184044-826a74e82875
-# k8s.io/client-go => k8s.io/client-go v0.0.0-20220922185149-be20b2bd91d8
-# k8s.io/code-generator => k8s.io/code-generator v0.0.0-20220922164127-998e449a1f89
+# k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20220922184044-7fb78ee96289
+# k8s.io/client-go => k8s.io/client-go v0.0.0-20220926163418-2f43d370b32c
+# k8s.io/code-generator => k8s.io/code-generator v0.0.0-20220926162019-1d82d12fa310

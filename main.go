@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	kubeinformers "k8s.io/client-go/informers"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -59,13 +60,16 @@ func main() {
 	}
 
 	exampleInformerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second*30)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 
 	controller := NewController(kubeClient, exampleClient,
-		exampleInformerFactory.Lenshood().V1alpha1().Networks())
+		exampleInformerFactory.Lenshood().V1alpha1().Networks(),
+		kubeInformerFactory.Core().V1().ConfigMaps())
 
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 	exampleInformerFactory.Start(stopCh)
+	kubeInformerFactory.Start(stopCh)
 
 	if err = controller.Run(2, stopCh); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())

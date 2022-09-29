@@ -17,7 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
+	v1 "k8s.io/client-go/informers/core/v1"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -67,6 +70,9 @@ type Controller struct {
 	networksLister listers.NetworkLister
 	networksSynced cache.InformerSynced
 
+	configmapsLister v12.ConfigMapLister
+	configmapsSynced cache.InformerSynced
+
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
 	// means we can ensure we only process a fixed amount of resources at a
@@ -82,7 +88,8 @@ type Controller struct {
 func NewController(
 	kubeclientset kubernetes.Interface,
 	sampleclientset clientset.Interface,
-	networkInformer informers.NetworkInformer) *Controller {
+	networkInformer informers.NetworkInformer,
+	configmapInformer v1.ConfigMapInformer) *Controller {
 
 	// Create event broadcaster
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
@@ -95,12 +102,14 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
 	controller := &Controller{
-		kubeclientset:   kubeclientset,
-		sampleclientset: sampleclientset,
-		networksLister:  networkInformer.Lister(),
-		networksSynced:  networkInformer.Informer().HasSynced,
-		workqueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Networks"),
-		recorder:        recorder,
+		kubeclientset:    kubeclientset,
+		sampleclientset:  sampleclientset,
+		networksLister:   networkInformer.Lister(),
+		networksSynced:   networkInformer.Informer().HasSynced,
+		configmapsLister: configmapInformer.Lister(),
+		configmapsSynced: configmapInformer.Informer().HasSynced,
+		workqueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Networks"),
+		recorder:         recorder,
 	}
 
 	klog.Info("Setting up event handlers")
@@ -133,7 +142,7 @@ func (c *Controller) Run(workers int, stopCh <-chan struct{}) error {
 
 	// Wait for the caches to be synced before starting workers
 	klog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.networksSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.networksSynced, c.configmapsSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
@@ -232,7 +241,18 @@ func (c *Controller) syncHandler(key string) error {
 		if errors.IsNotFound(err) {
 			utilruntime.HandleError(fmt.Errorf("network '%s' in work queue no longer exists", key))
 			klog.Infof("-------------------- DELETED --------------------")
-			return nil
+
+			if _, err := c.configmapsLister.ConfigMaps(namespace).Get(name); err != nil {
+				if errors.IsNotFound(err) {
+					// ignore
+					return nil
+				}
+
+				return err
+			}
+
+			// delete config map
+			return c.kubeclientset.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 		}
 
 		return err
@@ -250,21 +270,32 @@ func (c *Controller) syncHandler(key string) error {
 }
 
 func (c *Controller) updateFooStatus(network *samplev1alpha1.Network) error {
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// You can use DeepCopy() to make a deep copy of original object and modify this copy
-	// Or create a copy manually for better performance
-
-	//networkCopy := network.DeepCopy()
-
-	// If the CustomResourceSubresources feature gate is not enabled,
-	// we must use Update instead of UpdateStatus to update the Status block of the Network resource.
-	// UpdateStatus will not allow changes to the Spec of the resource,
-	// which is ideal for ensuring nothing other than resource status has been updated.
-
-	//_, err := c.sampleclientset.LenshoodV1alpha1().Networks(network.Namespace).UpdateStatus(context.TODO(), networkCopy, metav1.UpdateOptions{})
-
 	klog.Infof("-------------------- CREATED or UPDATED --------------------")
-	return nil
+	configMap, err := c.configmapsLister.ConfigMaps(network.Namespace).Get(network.Name)
+	if err != nil {
+		// create
+		if errors.IsNotFound(err) {
+			configMap = &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: network.Namespace,
+					Name:      network.Name,
+				},
+				Data: map[string]string{"cidr": network.Spec.Cidr, "gateway": network.Spec.Gateway},
+			}
+			_, err = c.kubeclientset.CoreV1().ConfigMaps(network.Namespace).Create(context.TODO(), configMap, metav1.CreateOptions{})
+		}
+
+		return err
+	}
+
+	copiedConfigMap := configMap.DeepCopy()
+	copiedConfigMap.Data = map[string]string{"cidr": network.Spec.Cidr, "gateway": network.Spec.Gateway}
+	_, err = c.kubeclientset.CoreV1().ConfigMaps(network.Namespace).Update(context.TODO(), copiedConfigMap, metav1.UpdateOptions{})
+	return err
 }
 
 // enqueueNetwork takes a Network resource and converts it into a namespace/name
